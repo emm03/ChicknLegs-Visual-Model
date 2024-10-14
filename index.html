@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cesium Globe with Cross Country Races and ChicknLegs Stores</title>
+  <script src="https://cdn.jsdelivr.net/npm/cesium/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    @import url(../templates/bucket.css);
+
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #cesiumContainer {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .button-container {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1;
+    }
+
+    .zoom-button {
+      padding: 10px;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    /* Key style */
+    .key-container {
+      position: absolute;
+      top: 60px;
+      left: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      /* Slight transparency */
+      padding: 10px;
+      border: 2px solid black;
+      width: 240px;
+      /* Increased width for better alignment */
+      font-family: sans-serif;
+    }
+
+    .key-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      /* Added more space for clarity */
+    }
+
+    .key-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 20px;
+      /* Increased spacing for alignment */
+    }
+
+    .yellow-line {
+      background-color: yellow;
+      border: 2px solid black;
+    }
+
+    .blue-dot,
+    .red-dot {
+      width: 20px;
+      /* Ensuring both blue and red are the same size */
+      height: 20px;
+      border-radius: 50%;
+    }
+
+    .blue-dot {
+      background-color: blue;
+    }
+
+    .red-dot {
+      background-color: red;
+    }
+
+    /* Ensuring the text is aligned properly */
+    .key-item span {
+      margin-left: 10px;
+      /* Adjustment for better alignment under the square */
+      line-height: 1.5;
+    }
+
+    /* Adjusting text alignment */
+    .key-item span {
+      display: inline-block;
+      width: 180px;
+      /* Ensuring all text titles are aligned under one another */
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer" class="fullSize"></div>
+  <div class="button-container">
+    <button class="zoom-button" onclick="zoomToUnitedStates()">Zoom to United States</button>
+
+    <!-- Key just below the zoom button -->
+    <div class="key-container">
+      <div class="key-item">
+        <div class="key-color yellow-line"></div>
+        <span>States with XC Races 2024</span>
+      </div>
+      <div class="key-item">
+        <div class="key-color blue-dot"></div>
+        <span>Locations of 2024 XC Races</span>
+      </div>
+      <div class="key-item">
+        <div class="key-color red-dot"></div>
+        <span>Locations of Stores with ChicknLegs Apparel</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmNzRmMmJiYy00YTk2LTRkZTktODMyNS0wZjhiZDUyMDk5NTgiLCJpZCI6MjQ1NzUxLCJpYXQiOjE3Mjc5NzcxMzV9.FPS2wp_tREVnFC_lungpIXavyWzcCmMkAwA1nejsIds';
+
+    const viewer = new Cesium.Viewer('cesiumContainer');
+
+    // Load cross-country races (GeoJSON)
+    Cesium.GeoJsonDataSource.load('the50states.json').then(function (dataSource) {
+      viewer.dataSources.add(dataSource);
+
+      const entities = dataSource.entities.values;
+      const raceStates = [
+        'Alabama', 'Alaska', 'Arkansas', 'California', 'Colorado', 'Florida', 'Georgia', 'Idaho',
+        'Illinois', 'Indiana', 'Kentucky', 'Minnesota', 'Mississippi', 'New Jersey', 'New York',
+        'North Carolina', 'North Dakota', 'Ohio', 'Pennsylvania', 'Tennessee', 'Texas', 'Utah', 'Virginia'
+      ];
+
+      for (let i = 0; i < entities.length; i++) {
+        const entity = entities[i];
+        const stateName = entity.properties.name.getValue();
+
+        // Apply labels for state names
+        entity.label = {
+          text: stateName,
+          font: '16px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          showBackground: true,
+          backgroundColor: Cesium.Color.BLACK.withAlpha(0.5),
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          verticalOrigin: Cesium.VerticalOrigin.CENTER,
+          translucencyByDistance: new Cesium.NearFarScalar(1e5, 1, 1e7, 0)
+        };
+
+        // Set default polygon styling
+        entity.polygon.material = Cesium.Color.TRANSPARENT;
+        entity.polygon.outline = true;
+        entity.polygon.outlineColor = Cesium.Color.YELLOW;
+
+        if (raceStates.includes(stateName)) {
+          entity.polygon.material = Cesium.Color.YELLOW.withAlpha(0.4);
+          entity.label.fillColor = Cesium.Color.YELLOW;  // Highlight label color for states with races
+          entity.description = `<h2>${stateName} Races</h2><p><a href="${stateName.toLowerCase().replace(' ', '_')}.html" target="_blank">View race data for ${stateName}</a></p>`;
+        }
+      }
+    });
+
+    // Load ChicknLegs store locations
+    const storeLocations = [
+      { lat: 28.55514, lon: -81.74540, name: "Dash Sports, Clermont, FL" },
+      { lat: 26.34298, lon: -80.08583, name: "Runner's Edge Boca, Boca Raton, FL" },
+      { lat: 27.23496, lon: -80.26657, name: "Fleet Feet Stuart, Stuart, FL" },
+      { lat: 38.25248, lon: -85.65179, name: "Ken Combs Running Store, Louisville, KY" },
+      { lat: 36.84155, lon: -76.11316, name: "Fleet Feet VA Beach, Virginia Beach, VA" },
+      { lat: 52.75177, lon: -1.57627, name: "Runners Athletic Company Mount Pleasant, Mount Pleasant, MI" },
+      { lat: 5.18501, lon: -74.97961, name: "Fleet Feet Fresno, Fresno, CA" },
+      { lat: 39.02192, lon: -94.65524, name: "The Running Well Store - Downtown Mission, Mission, KS" },
+      { lat: 42.28266, lon: -89.02794, name: "Fleet Feet Rockford, Rockford, IL" },
+      { lat: 38.64199, lon: -121.27035, name: "Wild Runners, Fair Oaks, CA" },
+      { lat: 49.60784, lon: -114.43713, name: "Spry Active, Blairmore, CANADA" },
+      { lat: 29.92226, lon: -90.09024, name: "Varsity Sports New Orleans, New Orleans, LA" },
+      { lat: 30.43038, lon: -91.16081, name: "Varsity Sports Baton Rouge, Baton Rouge, LA" },
+      { lat: 26.04889, lon: -80.25218, name: "Runner's Depot - Davie, Davie, FL" },
+      { lat: 30.35509, lon: -97.75611, name: "Ready to Run Texas, Austin, TX" },
+      { lat: 54.12844, lon: -111.36165, name: "TC Running Company - St Paul, St Paul, MN" },
+      { lat: 44.93715, lon: -92.95318, name: "TC Running Company - Woodbury, Woodbury, MN" },
+      { lat: 38.79613, lon: -77.60849, name: "The Running Store, Gainesville, VA" },
+      { lat: 40.29943, lon: -80.15215, name: "The Tandem Connection, Canonsburg, PA" },
+      { lat: 30.17005, lon: -95.47111, name: "Fleet Feet Houston - The Woodlands, The Woodlands, TX" },
+      { lat: 29.86983, lon: -95.33984, name: "Fleet Feet Houston - Vintage Park, Houston, TX" },
+      { lat: 29.74202, lon: -95.77447, name: "Fleet Feet Houston - Katy, Katy, TX" },
+      { lat: 29.77099, lon: -95.17789, name: "Fleet Feet Houston - Sugar Land, Sugar Land, TX" },
+      { lat: 33.935553, lon: 35.611165, name: "Skinny Raven, Anchorage, AK" },
+      { lat: 41.03971, lon: -74.64845, name: "Root Runners, Sparta, NJ" },
+      { lat: 45.01761, lon: -64.87441, name: "Fleet Feet Folsom, Folsom, CA" },
+      { lat: 38.7442, lon: -121.25613, name: "Fleet Feet Roseville, Roseville, CA" },
+      { lat: 41.28233, lon: -73.4991, name: "Ridgefield Running Company, Ridgefield, CT" },
+      { lat: 40.86177, lon: -74.566902, name: "Runner's Haven, Randolph, NJ" },
+      { lat: 47.7743633, lon: -53.1975213, name: "RunAbout Sports Blacksburg, Blacksburg, VA" },
+      { lat: 30.61749, lon: -96.31951, name: "Brazos Running Company, College Station, TX" },
+      { lat: 42.44448, lon: -76.50894, name: "Finger Lakes Running Company, Ithaca, NY" },
+      { lat: 34.67572, lon: -86.54787, name: "Fleet Feet Huntsville, Huntsville, AL" },
+      { lat: 32.52973, lon: -92.11561, name: "Fleet Feet Monroe, Monroe, LA" },
+      { lat: 40.00479, lon: -75.13607, name: "Gingerbread Man Running Co, Indiana, PA" },
+      { lat: -28.0646, lon: 26.85562, name: "Reno Running Company, Reno, NV" },
+      { lat: 28.23354, lon: -81.2562, name: "EnduRUNce Shop - St Cloud, St Cloud, MN" },
+      { lat: 38.9113, lon: -77.01085, name: "EnduRUNce Shop - Brainerd, Brainerd, MN" },
+      { lat: 42.26112, lon: -82.96843, name: "The Running Factory, Windsor, ON" },
+      { lat: 44.49474, lon: -73.11897, name: "Fleet Feet Vermont, Essex Junction, VT" },
+      { lat: 27.8805, lon: -82.2961, name: "The Running Center Tampa, Tampa, FL" },
+      { lat: 32.93246, lon: -97.2287, name: "Bear Creek Running Company, Keller, TX" },
+      { lat: 41.55312, lon: -90.56935, name: "Runnning Wild, Davenport, IA" },
+      { lat: 45.67083, lon: -111.04424, name: "Bozeman Running Company, Bozeman, MT" },
+      { lat: 29.97559, lon: -90.10155, name: "Louisiana Running, New Orleans, LA" },
+      { lat: 34.24172, lon: -77.82787, name: "Fleet Feet Wilmington, Wilmington, NC" },
+      { lat: 41.46939, lon: -87.07011, name: "Extra Mile Fitness Company, Valparaiso, IN" },
+      { lat: 49.99502, lon: -104.51916, name: "Milestone Running, San Diego, CA" },
+      { lat: 35.80238, lon: -78.68553, name: "Fleet Feet Raleigh - Ridgewood Shopping Center, Raleigh, NC" },
+      { lat: 35.78995, lon: -78.65855, name: "Fleet Feet Raleigh - Village District, Raleigh, NC" },
+      { lat: 32.90772, lon: -95.94218, name: "Fleet Feet Raleigh - Market at Colonnade, Raleigh, NC" },
+      { lat: 35.84731, lon: -78.66407, name: "Fleet Feet Raleigh - Morrisville Park West Village, Morrisville, NC" },
+      { lat: 43.520268, lon: -96.778505, name: "605 Running Company - Downtown, Sioux Falls, SD" },
+      { lat: 43.48167, lon: -96.74733, name: "605 Running Company - The Bridges, Sioux Falls, SD" },
+      { lat: 41.76051, lon: -72.74569, name: "Fleet Feet Hartford, West Hartford, CT" },
+      { lat: 39.32406, lon: -77.73135, name: "Harpers Ferry Outfitters, Harpers Ferry, WV" },
+      { lat: 37.19468, lon: -77.37695, name: "St Pete Running Company, St Petersburg, FL" },
+      { lat: 34.53777, lon: -84.93511, name: "Performance Running Outfitters - Brookfield, Brookfield, WI" },
+      { lat: 43.05, lon: -88.37548, name: "Performance Running Outfitters - Delafield, Delafield, WI" },
+      { lat: 35.00036, lon: -91.89874, name: "Performance Running Outfitters - Milwaukee's 3rd Ward, Milwaukee, WI" },
+      { lat: 43.0991, lon: -87.88778, name: "Performance Running Outfitters" },
+      { lat: 38.9113, lon: -77.01085, name: "Bull City Running - Downtown, Durham, NC" },
+      { lat: 48.422359, lon: 13.977668, name: "Bull City Running - South Durham, Durham, NC" },
+      { lat: 32.9097, lon: -96.80396, name: "Fleet Feet Preston/Forest, Dallas, TX" },
+      { lat: 45.024476, lon: -72.214293, name: "Fleet Feet Ogden, Ogden, UT" },
+      { lat: 44.76395, lon: -85.61804, name: "Fleet Feet Downtown Traverse City, Traverse City, MI" },
+      { lat: 39.5966, lon: -104.88975, name: "Fleet Feet Greenwood Village, Greenwood Village, CO" },
+      { lat: 32.98258, lon: -96.65009, name: "Fleet Feet Richardson, Richardson, TX" },
+      { lat: 33.10161, lon: -96.81598, name: "Fleet Feet Frisco, Frisco, TX" },
+      { lat: 32.83656, lon: -96.77382, name: "Fleet Feet Mockingbird, Dallas, TX" },
+      { lat: 38.913305, lon: -94.724667, name: "Fleet Feet Overland Park, Overland Park, KS" },
+      { lat: 32.99683, lon: -96.99339, name: "Fleet Feet Coppell, Coppell, TX" },
+      { lat: 42.27399, lon: -83.74696, name: "Fleet Feet Downtown Ann Arbor, Ann Arbor, MI" },
+      { lat: 33.19748, lon: -96.67517, name: "Fleet Feet McKinney, McKinney, TX" },
+      { lat: 40.00138, lon: -86.11932, name: "Fleet Feet Carmel, Carmel, IN" },
+      { lat: 39.955868, lon: -86.010883, name: "Fleet Feet Fishers, Fishers, IN" },
+      { lat: 32.76351, lon: -97.33986, name: "Fleet Feet Fort Worth, Fort Worth, TX" },
+      { lat: 32.90926, lon: -95.87415, name: "Fleet Feet Cherry Creek, Denver, CO" },
+      { lat: 38.95751, lon: -95.26419, name: "Fleet Feet Lawrence, Lawrence, KS" },
+      { lat: 38.97208, lon: -94.60564, name: "Fleet Feet Kansas City, Kansas City, MO" },
+      { lat: 41.0892, lon: -111.97345, name: "Fleet Feet Layton, Layton, UT" },
+      { lat: 39.02749, lon: -95.75953, name: "Fleet Feet Topeka, Topeka, KS" },
+      { lat: 51.288802, lon: -0.862609, name: "Fleet Feet Agoura Hills CA/Westlake, Agoura Hills, CA" },
+      { lat: 29.49889, lon: -98.48076, name: "Fleet Feet San Antonio Quarry, San Antonio, TX" },
+      { lat: 29.60959, lon: -98.59744, name: "Fleet Feet San Antonio The RIM, San Antonio, TX" },
+      { lat: 32.90926, lon: -95.87415, name: "Fleet Feet Decatur, Decatur, GA" },
+      { lat: 43.05452, lon: -76.06723, name: "Fleet Feet East Syracuse, East Syracuse, NY" },
+      { lat: 43.1848, lon: -76.22946, name: "Fleet Feet Clay, Clay, NY" },
+      { lat: 35.9132, lon: -79.0798, name: "Fleet Feet Carrboro, Carrboro, NC" },
+      { lat: 35.90394, lon: -78.93795, name: "Fleet Feet Durham, Durham, NC" },
+      { lat: 28.00078, lon: -81.98017, name: "Fleet Feet Lakeland, Lakeland, FL" },
+      { lat: 30.6771, lon: -88.15133, name: "Fleet Feet Mobile, Mobile, AL" },
+      { lat: 32.00078, lon: -81.28337, name: "Howe2Run, Savannah, GA" },
+      { lat: 54.16806, lon: -4.52635, name: "Fartleks Running Shop Smoothie Stop, Wichita, KS" },
+      { lat: 39.59425, lon: -104.80696, name: "Runners Roost Aurora, Aurora, CO" },
+      { lat: 40.02862, lon: -105.28238, name: "Runners Roost Boulder, Boulder, CO" },
+      { lat: 39.75468, lon: -104.89042, name: "Runners Roost Central Park, Denver, CO" },
+      { lat: 39.68391, lon: -105.05516, name: "Runners Roost Denver, Denver, CO" },
+      { lat: 32.90926, lon: -95.87415, name: "Runners Roost Fort Collins, Fort Collins, CO" },
+      { lat: 39.70945, lon: -105.08413, name: "Runners Roost Lakewood, Lakewood, CO" },
+      { lat: 39.53523, lon: -104.88075, name: "Runners Roost Lone Tree, Lone Tree, CO" },
+      { lat: 39.98152, lon: -105.16576, name: "Runners Roost Louisville, Louisville, CO" },
+      { lat: 39.21944, lon: -76.87436, name: "Feet First Sports, Columbia, MD" },
+      { lat: 44.74352, lon: -93.27263, name: "TC Running Company - Burnsville, Burnsville, MN" },
+      { lat: 44.88737, lon: -93.41795, name: "TC Running Company - Eden Prairie, Eden Prairie, MN" },
+      { lat: 45.06611, lon: -93.4427, name: "TC Running Company - Maple Grove, Maple Grove, MN" },
+      { lat: 39.8977, lon: -75.03294, name: "South Jersey Running Co - Haddonfield, Haddonfield, NJ" },
+      { lat: 39.95851, lon: -74.80718, name: "South Jersey Running Co - Medford, Medford, NJ" },
+      { lat: 40.7218, lon: -74.0694, name: "South Jersey Running Co - Moorestown, Moorestown, NJ" },
+      { lat: 39.73795, lon: -75.22455, name: "South Jersey Running Co - Mullica Hill, Mullica Hill, NJ" },
+      { lat: 38.9113, lon: -77.01085, name: "Run In - Greenville, Greenville, SC" },
+      { lat: 34.73546, lon: -82.26025, name: "Run In - Simpsonville, Simpsonville, SC" },
+      { lat: 42.00618, lon: -71.30149, name: "DB Sports, North Attleborough, MA" },
+      { lat: 37.22505, lon: -79.96956, name: "Fleet Feet Roanoke, Roanoke, VA" },
+      { lat: -27.65206, lon: 152.92097, name: "Fleet Feet Springfield, Springfield, MO" },
+      { lat: 39.33908, lon: -84.29232, name: "Buckeye Running Company, Mason, OH" },
+      { lat: 54.56989, lon: -1.31823, name: "Fleet Feet Stockton, Stockton, CA" },
+      { lat: 34.83691, lon: -82.40575, name: "Fleet Feet Greenville, Greenville, SC" },
+      { lat: -26.25067, lon: 28.46064, name: "Fit2Run - Disney Springs, Lake Buena Vista, FL" },
+      { lat: 18.40943, lon: -66.01925, name: "Fit2Run - San Juan, San Juan, Puerto Rico" },
+      { lat: 18.406431, lon: -66.161397, name: "Fit2Run - Bayamón, Bayamón, Puerto Rico" },
+      { lat: 59.93762, lon: 30.28797, name: "Fit2Run Downtown St. Petersburg, St. Petersburg, FL" },
+      { lat: 32.90926, lon: -95.87415, name: "Fit2Run Tampa, Tampa, FL" },
+      { lat: 30.381447, lon: -86.323296, name: "Fit2Run Destin, Miramar Beach, FL" },
+      { lat: -33.64317, lon: 19.02109, name: "Fit2Run Wellington, Wellington, FL" },
+      { lat: 27.53404, lon: -82.50785, name: "Fit2Run Ellenton, Ellenton, FL" },
+      { lat: 17.99404, lon: -66.61199, name: "Fit2Run Plaza Del Caribe, Ponce, Puerto Rico" },
+      { lat: 18.15371, lon: -67.14333, name: "Fit2Run Mayaguez, Mayaguez, Puerto Rico" },
+      { lat: 30.219697, lon: -85.870672, name: "Fit2Run Panama City - Pier Park, Panama City, FL" },
+      { lat: 26.84814, lon: -80.08607, name: "Fit2Run Palm Beach, Palm Beach Gardens, FL" },
+      { lat: 26.4005, lon: -81.80765, name: "Fit2Run Ft Myers, Estero, FL" },
+      { lat: 28.57332, lon: -81.20786, name: "Fit2Run Waterford Lakes, Orlando, FL" },
+      { lat: 27.33623, lon: -82.54215, name: "Fit2Run Sarasota Main Street, Sarasota, FL" },
+      { lat: 26.16774, lon: -81.79923, name: "Fit2Run Naples, Naples, FL" },
+      { lat: 30.3976, lon: -87.4188, name: "Fit2Run Cordova, Pensacola, FL" },
+      { lat: 50.6103, lon: 4.19421, name: "Fit2Run Melbourne, Melbourne, FL" },
+      { lat: 52.44251, lon: 0.63755, name: "Fit2Run Brandon, Brandon, FL" },
+      { lat: 42.14557, lon: -71.25416, name: "The Run House, Walpole, MA" },
+      { lat: 34.26912, lon: -118.70463, name: "On Track Running Company, Simi Valley, CA" },
+      { lat: 41.89643, lon: -88.09387, name: "Dick Pond Athletics - Carol Stream, Carol Stream, IL" },
+      { lat: 42.05279922, lon: -88.14009857, name: "Dick Pond Athletics - Hoffman Estates, Hoffman Estates, IL" },
+      { lat: 41.77926, lon: -88.10636, name: "Dick Pond Athletics - Lisle, Lisle, IL" },
+      { lat: 42.01885, lon: -87.84435, name: "Dick Pond Athletics - Park Ridge, Park Ridge, IL" },
+      { lat: 38.7896, lon: -90.51552, name: "Dick Pond Athletics - St Charles, St Charles, IL" },
+      { lat: 41.22506, lon: -85.82236, name: "Cloud 9 Multisport, Winona Lake, IN" },
+      { lat: 36.07369, lon: -95.82068, name: "Fleet Feet Tulsa-Broken Arrow, Tulsa, OK" },
+      { lat: 35.11899, lon: -89.91107, name: "Fleet Feet Memphis, Memphis, TN" },
+      { lat: 35.05322, lon: -89.73819, name: "Fleet Feet Collierville, Collierville, TN" },
+      { lat: 41.07085, lon: -80.6753, name: "Second Sole Ohio - Boardman, Youngstown, OH" },
+      { lat: 40.84924, lon: -81.43558, name: "Second Sole Ohio - Canton, Canton, OH" },
+      { lat: 41.67744, lon: -81.37813, name: "Second Sole Ohio - Mentor, Mentor, OH" },
+      { lat: 40.00882, lon: -82.86825, name: "Second Sole Ohio - Gahanna, Gahanna, OH" },
+      { lat: 33.21064, lon: -87.56635, name: "Fleet Feet Tuscaloosa, Tuscaloosa, AL" },
+      { lat: 30.20654, lon: -92.03982, name: "Tri-Running, Lafayette, LA" },
+      { lat: 39.19754, lon: -78.15959, name: "Runners' Retreat, Winchester, VA" },
+      { lat: 34.25141, lon: -84.47339, name: "Fleet Feet Canton, Canton, GA" },
+      { lat: 33.17483, lon: -94.97015, name: "Blue Sky Endurance, Mount Pleasant, SC" },
+      { lat: 30.48944, lon: -84.24046, name: "Cadence Running, Tallahassee, FL" },
+      { lat: 35.61432, lon: -97.49488, name: "OK Runner - Oklahoma City, Oklahoma City, OK" },
+      { lat: 35.2547, lon: -97.46243, name: "OK Runner - Norman, Norman, OK" },
+      { lat: 35.19533, lon: -80.82606, name: "The Ultra Running Company, Charlotte, NC" },
+      { lat: 39.739125, lon: -79.901252, name: "Marion Outdoors, Marion, VA" },
+      { lat: 39.65742, lon: -84.15867, name: "Up and Running in Dayton, Centerville, OH" },
+      { lat: 39.18894, lon: -96.61049, name: "Manhattan Running Company, Manhattan, KS" },
+      { lat: 29.69942, lon: -98.11769, name: "Two Rivers Running, New Braunfels, TX" },
+      { lat: 35.85048, lon: -86.43083, name: "Fleet Feet Murfreesboro, Murfreesboro, TN" },
+      { lat: 33.8706, lon: -84.45862, name: "West Stride, Atlanta, GA" },
+      { lat: 33.56361, lon: -85.11356, name: "SoleRoots Running Company, Carrollton, GA" },
+      { lat: 61.600558, lon: -149.115112, name: "AKtive Soles Performance Footwear, Palmer, AK" },
+      { lat: 47.66552, lon: -117.43152, name: "Fleet Feet PNW - Spokane North, Spokane, WA" },
+      { lat: 47.68139, lon: -117.40707, name: "Fleet Feet PNW - Spokane, Spokane, WA" },
+      { lat: 47.66104, lon: -117.23169, name: "Fleet Feet PNW - Spokane Valley, Spokane Valley, WA" },
+      { lat: 47.16877, lon: -122.16758, name: "Fleet Feet Puget Sound - Bonney Lake, Bonney Lake, WA" },
+      { lat: 43.28082, lon: 6.14682, name: "Fleet Feet Puget Sound - Tacoma, Tacoma, WA" },
+      { lat: 46.27399, lon: -119.27342, name: "Fleet Feet Tri-Cities, Richland, WA" },
+      { lat: 31.23614, lon: -85.43538, name: "Love 2 Run, Dothan, AL" },
+      { lat: 33.40646, lon: -111.72084, name: "Up and Running El Paso, El Paso, TX" },
+      { lat: 41.61387, lon: -93.79737, name: "Fitness Sports, Clive, IA" },
+      { lat: 44.04984, lon: -121.31331, name: "Around the Bend Outfitters, Hiawassee, GA" },
+      { lat: 43.14218, lon: -77.57867, name: "Fleet Feet Rochester/Buffalo, Rochester, NY" },
+      { lat: 40.33623, lon: -75.95197, name: "Fleet Feet West Reading, West Reading, PA" },
+      { lat: 42.36173, lon: -71.23907, name: "Marathon Sports, Waltham, MA" },
+      { lat: 40.15603, lon: -83.00095, name: "Fleet Feet Columbus, Lewis Center, OH" },
+      { lat: 40.73338, lon: -73.44616, name: "Runner's Edge NY, Farmingdale, NY" },
+      { lat: 14.66001, lon: -90.45808, name: "Forrest Running Shop, Guatemala City, Guatemala" },
+      { lat: 36.03138, lon: -115.22301, name: "Red Rock Running Company - Southwest, Las Vegas, NV" },
+      { lat: 36.02218, lon: -115.08412, name: "Red Rock Running Company - Henderson, Henderson, NV" },
+      { lat: 36.26925, lon: -115.23785, name: "Red Rock Running Company - Centennial Hills, Las Vegas, NV" },
+      { lat: 40.37306, lon: -111.78637, name: "UtahRUN, American Fork, UT" },
+      { lat: 32.90926, lon: -95.87415, name: "Fleet Feet Mt Juliet, Mt Juliet, TN" },
+      { lat: 31.32047, lon: -85.84202, name: "Weevil Run, Enterprise, AL" },
+      { lat: 35.89291, lon: -82.8269, name: "Bluff Mountain Outfitters, Hot Springs, NC" },
+      { lat: 32.93307, lon: -95.87002, name: "Valley Forge Running Company, Collegeville, PA" },
+      { lat: 33.51805, lon: -82.06012, name: "Fleet Feet Augusta, Augusta, GA" },
+      { lat: 41.56422, lon: -90.525, name: "Fleet Feet Davenport, Davenport, IA" },
+      { lat: 38.62364, lon: -90.33127, name: "Running Niche, Saint Louis, MO" },
+      { lat: 43.07312, lon: -89.39994, name: "Movin' Shoes, Madison, WI" },
+      { lat: 30.44829, lon: -86.61213, name: "Run With It, Fort Walton Beach, FL" },
+      { lat: 46.87227, lon: -113.99369, name: "Runners Edge MT, Missoula, MT" },
+      { lat: 46.88129, lon: -96.78771, name: "Beyond Running - Downtown, Fargo, ND" },
+      { lat: 46.87663, lon: -96.8845, name: "Beyond Running - West Fargo, West Fargo, ND" },
+      { lat: 40.43877, lon: -79.76302, name: "Pro Bike + Run - Monroeville, Monroeville, PA" },
+      { lat: 40.59267, lon: -80.01559, name: "Pro Bike + Run - North Park, Allison Park, PA" },
+      { lat: 40.43894, lon: -79.96509, name: "Pro Bike + Run - Robinson, Pittsburgh, PA" },
+      { lat: 40.454253, lon: -79.981343, name: "Pro Bike + Run - Strip District, Pittsburgh, PA" },
+      { lat: 48.70213, lon: -122.49184, name: "Fairhaven Runners, Bellingham, WA" },
+      { lat: 30.42162, lon: -87.25669, name: "Running Wild - Pensacola, Pensacola, FL" },
+      { lat: 30.46964, lon: -87.90307, name: "Running Wild - Fairhope, Fairhope, AL" },
+      { lat: 36.63097, lon: -81.78395, name: "Sundog Outfitters, Damascus, VA" },
+      { lat: 13.36815, lon: -61.13555, name: "Charlotte Running Company, Charlotte, NC" },
+      { lat: 51.45645, lon: -0.302, name: "Game Changers Running Company - Richmond Hill, Richmond Hill, GA" },
+      { lat: 30.59077, lon: -81.44655, name: "Game Changers Running Company - Amelia Island, Fernandina Beach, FL" },
+      { lat: 31.162131, lon: -81.389647, name: "Game Changers Running Company - St Simons Island, St Simons, GA" },
+      { lat: 43.10244, lon: -77.53457, name: "Medved Running & Walking Outfitters, Rochester, NY" },
+      { lat: 43.99542, lon: -88.57925, name: "Fusion Footwear, Oshkosh, WI" },
+      { lat: 29.18731, lon: -82.13601, name: "The Running Elements - Ocala, Ocala, FL" },
+      { lat: 29.735, lon: -95.76356, name: "Good Times Running Company, Katy, TX" },
+      { lat: 32.90926, lon: -95.87415, name: "Fleet Feet Fox Valley, Appleton, WI" },
+      { lat: 35.09188, lon: -92.43952, name: "The Sporty Runner, Conway, AR" },
+      { lat: 38.19594, lon: -85.70291, name: "Swags Sport Shoes - East, Louisville, KY" },
+      { lat: 38.22658, lon: -85.79144, name: "Swags Sport Shoes - South, Louisville, KY" },
+      { lat: 34.83942, lon: -87.63955, name: "Solid Rock Running Company, Florence, AL" },
+      { lat: 26.61569, lon: -81.87165, name: "Fleet Feet Fort Myers, Fort Myers, FL" },
+      { lat: 35.94283, lon: -83.97797, name: "Runners Market, Knoxville, TN" },
+      { lat: 41.55312, lon: -90.56935, name: "Running Wild - Davenport, Davenport, IA" },
+      { lat: 35.4449, lon: -80.87705, name: "Fleet Feet Huntersville, Huntersville, NC" },
+      { lat: 47.7743633, lon: -53.1975213, name: "Fleet Feet Tupelo, Tupelo, MS" },
+      { lat: 40.26159, lon: -76.77749, name: "Inside Track Running PA - Harrisburg, Harrisburg, PA" },
+      { lat: 40.06745, lon: -76.30442, name: "Inside Track Running PA - Lancaster, Lancaster, PA" },
+      { lat: 40.24424, lon: -76.9949, name: "Inside Track Running PA - Mechanicsburg, Mechanicsburg, PA" },
+      { lat: 38.35582, lon: -121.98926, name: "Fleet Feet Vacaville, Vacaville, CA" },
+      { lat: 36.10574, lon: -86.81307, name: "Fleet Feet Nashville - Green Hills, Nashville, TN" },
+      { lat: 36.02654, lon: -86.79247, name: "Fleet Feet Nashville - Brentwood, Brentwood, TN" },
+      { lat: 36.32942, lon: -86.58967, name: "Fleet Feet Nashville - Hendersonville, Hendersonville, TN" },
+      { lat: 36.11925, lon: -79.83053, name: "Fleet Feet Greensboro, Greensboro, NC" },
+      { lat: 30.4471, lon: -87.27351, name: "Fleet Feet Pensacola, Pensacola, FL" },
+      { lat: 35.05659, lon: -78.8999, name: "Fleet Feet Fayetteville, Fayetteville, NC" },
+      { lat: 42.41358, lon: -83.43342, name: "Fleet Feet Northville, Northville, MI" },
+      { lat: 39.60915, lon: -105.08868, name: "Fleet Feet Littleton, Littleton, CO" },
+      { lat: 42.08248, lon: -88.00602, name: "Runner's High N Tri, Arlington Heights, IL" },
+      { lat: 39.64198, lon: -79.96215, name: "Morgantown Running Company, Morgantown, WV" },
+      { lat: -17.754057, lon: -63.180327, name: "Fleet Feet Menlo Park, Menlo Park, CA" },
+      { lat: 30.41461, lon: -89.03038, name: "Run-N-Tri Company - Gulfport, Gulfport, MS" },
+      { lat: 30.67509, lon: -88.18894, name: "Run-N-Tri Company - Mobile, Mobile, AL" },
+      { lat: 33.97476, lon: -84.41464, name: "Big Peach Running Company - Marietta (East Cobb), Marietta, GA" },
+      { lat: 34.08795, lon: -84.26628, name: "Big Peach Running Company - Alpharetta, Alpharetta, GA" },
+      { lat: 34.05607, lon: -84.06289, name: "Big Peach Running Company - Suwanee, Suwanee, GA" },
+      { lat: 33.994564, lon: -84.592799, name: "Big Peach Running Company - Kennesaw, Kennesaw, GA" },
+      { lat: 33.86979, lon: -84.33691, name: "Big Peach Running Company - Brookhaven, Brookhaven, GA" },
+      { lat: 34.35177, lon: -84.04473, name: "Big Peach Running Company - Dawsonville, Dawsonville, GA" },
+      { lat: 34.17313, lon: -84.18675, name: "Big Peach Running Company - Cumming, Cumming, GA" },
+      { lat: 35.337538, lon: -80.757305, name: "Run For Your Life - University, Charlotte, NC" },
+      { lat: 35.07886, lon: -80.81769, name: "Run For Your Life - Piper Glen, Charlotte, NC" },
+      { lat: 13.36815, lon: -61.13555, name: "Run For Your Life - Midtown, Charlotte, NC" },
+      { lat: 35.568, lon: -97.52611, name: "Red Coyote Running Company - Classen Curve, Oklahoma City, OK" },
+      { lat: 35.680709, lon: -97.498409, name: "Red Coyote Running Company - Edmond, Edmond, OK" },
+      { lat: 40.73615, lon: -73.08273, name: "Sayville Running Company, Sayville, NY" },
+      { lat: 53.17168, lon: -99.26736, name: "Gazelle Sports - 28th Street Grand Rapids, Grand Rapids, MI" },
+      { lat: 42.42386, lon: -83.43651, name: "Gazelle Sports - Northville, Northville, MI" },
+      { lat: 41.58566, lon: -93.62957, name: "Fleet Feet Des Moines, Des Moines, IA" },
+      { lat: 47.7743633, lon: -53.1975213, name: "Run Well, Edwardsville, IL" },
+      { lat: 35.67316, lon: -105.94884, name: "The Running Hub Santa Fe, Santa Fe, NM" },
+      { lat: 39.93485, lon: -91.35997, name: "Running Wild Midwest - Quincy, Quincy, IL" },
+      { lat: 40.81255, lon: -91.15877, name: "Running Wild Midwest - West Burlington, West Burlington, IA" },
+      { lat: 41.16018, lon: -104.8009, name: "Foot of the Rockies, Cheyenne, WY" },
+      { lat: 37.82127, lon: -121.99897, name: "Forward Motion Sports, Danville, CA" },
+      { lat: 32.41233, lon: -81.7716, name: "Swim Bike Run Boro, Statesboro, GA" },
+      { lat: 32.90926, lon: -95.87415, name: "The Running Elements - Daytona, Daytona Beach, FL" },
+      { lat: 42.10018, lon: -86.48517, name: "Connected Soles, Saint Joseph, MI" },
+      { lat: 34.787042, lon: -82.374089, name: "Fleet Feet Greenville, Greenville, NC" },
+      { lat: 30.15441, lon: -85.6613, name: "Minutes and Miles, Panama City, FL" },
+      { lat: 33.21992, lon: -111.72454, name: "SCHEELS - Chandler, Chandler, AZ" },
+      { lat: 33.07532, lon: -96.8593, name: "SCHEELS - The Colony, The Colony, TX" },
+      { lat: 40.40445, lon: -104.9794, name: "SCHEELS - Johnstown, Johnstown, CO" },
+      { lat: 41.26118, lon: -96.18382, name: "SCHEELS - Omaha, Omaha, NE" },
+      { lat: 38.88077, lon: -94.66077, name: "SCHEELS - Overland Park, Overland Park, KS" },
+      { lat: 38.99409, lon: -104.80664, name: "SCHEELS - Colorado Springs, Colorado Springs, CO" },
+      { lat: 40.57059, lon: -111.89087, name: "SCHEELS - Sandy, Sandy, UT" },
+      { lat: 43.598389, lon: -116.428837, name: "SCHEELS - Meridian/Boise, Meridian, ID" },
+      { lat: 44.85518, lon: -93.42925, name: "SCHEELS - Eden Prairie, Eden Prairie, MN" },
+      { lat: 40.74319, lon: -96.6758, name: "SCHEELS - Lincoln, Lincoln, NE" },
+      { lat: 45.74877, lon: -108.61353, name: "SCHEELS - Billings, Billings, MT" },
+      { lat: 46.873306, lon: -96.81026, name: "SCHEELS - Fargo, Fargo, ND" },
+      { lat: 41.6915, lon: -91.60131, name: "SCHEELS - Iowa City, Coralville, IA" },
+      { lat: 51.45246, lon: 0.63232, name: "SCHEELS - Rochester, Rochester, MN" },
+      { lat: 43.51452, lon: -96.73292, name: "SCHEELS - Sioux Falls, Sioux Falls, SD" },
+      { lat: 37.67424, lon: -97.38673, name: "SCHEELS - Wichita, Wichita, KS" },
+      { lat: 46.79653, lon: -100.78702, name: "SCHEELS - Bismarck, Bismarck, ND" },
+      { lat: 44.27261, lon: -88.46443, name: "SCHEELS - Appleton, Appleton, WI" },
+      { lat: 39.5304, lon: -119.72175, name: "SCHEELS - Reno Sparks, Sparks, NV" },
+      { lat: 44.09906, lon: -103.19103, name: "SCHEELS - Rapid City, Rapid City, SD" },
+      { lat: -38.16036, lon: 176.23728, name: "SCHEELS - Springfield, Springfield, IL" },
+      { lat: 46.84549, lon: -114.02751, name: "SCHEELS - Missoula, Missoula, MT" },
+      { lat: 44.08282, lon: -103.22349, name: "Black Hills Running Company, Rapid City, SD" },
+      { lat: 35.11359, lon: -106.5867, name: "Heart and Sole Sports - San Mateo Blvd, Albuquerque, NM" },
+      { lat: 35.10898, lon: -106.61208, name: "Heart and Sole Sports - Eubank, Albuquerque, NM" },
+      { lat: 32.48401, lon: -84.95149, name: "Big Dog Fleet Feet - Columbus, Columbus, GA" },
+      { lat: 34.69062, lon: -82.80926, name: "Gotta Run - Clemson, Clemson, SC" },
+      { lat: 34.95088, lon: -81.91858, name: "Gotta Run - Spartanburg, Spartanburg, SC" },
+      { lat: 34.80797, lon: -82.23362, name: "Gotta Run - Five Forks, Simpsonville, SC" },
+      { lat: 34.51357, lon: -82.67311, name: "Gotta Run - Anderson, Anderson, SC" },
+      { lat: 41.67549, lon: -83.62406, name: "Fleet Feet Toledo, Toledo, OH" },
+      { lat: 40.29943, lon: -80.15215, name: "The Tandem Connection, Canonsburg, PA" },
+      { lat: 46.541176, lon: -87.394844, name: "Queen City Running Company, Marquette, MI" },
+      { lat: 47.12176, lon: -88.56954, name: "Copper Country Running Company, Houghton, MI" },
+      { lat: 42.09577, lon: -70.85055, name: "Hanson's Running Shop - Lake Orion, Lake Orion, MI" },
+      { lat: 42.62624, lon: -83.028, name: "Hanson's Running Shop - Utica, Utica, MI" },
+      { lat: 42.52036, lon: -83.13958, name: "Hanson's Running Shop - Royal Oak, Royal Oak, MI" },
+      { lat: 48.422359, lon: 13.977668, name: "Hanson's Running Shop - Grosse Pointe, Grosse Pointe, MI" },
+      { lat: 30.27745, lon: -86.00631, name: "Fleet Feet Inlet Beach, Inlet Beach, FL" },
+      { lat: 40.63433, lon: -74.25419, name: "Often Running, Normal, IL" },
+      { lat: 47.52526, lon: -121.82243, name: "Snoqualmie Running Company, Snoqualmie, WA" },
+      { lat: 31.55446, lon: -97.13257, name: "Waco Running Company, Waco, TX" },
+      { lat: 43.6218, lon: -116.22525, name: "Bandanna Running Company, Boise, ID" },
+      { lat: 53.55046, lon: -6.10195, name: "Rush Running Company - Bentonville, Bentonville, AR" },
+      { lat: 35.04907, lon: -78.92823, name: "Rush Running Company - Fayetteville, Fayetteville, AR" },
+      { lat: 32.70941, lon: -97.40091, name: "Luke's Locker - Ft Worth, Fort Worth, TX" },
+      { lat: 32.83724, lon: -96.78029, name: "Luke's Locker - Dallas, Dallas, TX" },
+      { lat: 32.52973, lon: -92.11561, name: "Fleet Feet Monroe, Monroe, LA" },
+      { lat: 39.88277, lon: -83.09311, name: "Columbus Running Company, Grove City, OH" },
+      { lat: 28.75316, lon: -81.3482, name: "Front Running Sports, Lake Mary, FL" },
+      { lat: 35.11359, lon: -106.5867, name: "Heart & Sole Sports, Albuquerque, NM" },
+      { lat: 39.31027, lon: -120.92807, name: "The Colorado Running Company, Colorado Springs, CO" },
+      { lat: 40.55483, lon: -105.09789, name: "Altitude Running - Fort Collins, Fort Collins, CO" },
+      { lat: 40.39135, lon: -104.70766, name: "Altitude Running - Greeley, Greeley, CO" },
+      { lat: 45.53042, lon: -76.08146, name: "RNK Running & Walking - Parker, Parker, CO" },
+      { lat: 39.38436, lon: -104.85618, name: "RNK Running & Walking - Castle Rock, Castle Rock, CO" },
+      { lat: 36.56409, lon: -87.3101, name: "Fleet Feet Clarksville, Clarksville, TN" },
+      { lat: 7.07041, lon: 125.52493, name: "Sole Focus Running - Staunton, Staunton, VA" },
+      { lat: 38.44776, lon: -78.86675, name: "Sole Focus Running - Harrisonburg, Harrisonburg, VA" },
+      { lat: 41.98477, lon: -91.67674, name: "Iowa Running Company, Cedar Rapids, IA" },
+      { lat: 35.05307, lon: -89.88425, name: "Grivet Outdoors - East Memphis, Memphis, TN" },
+      { lat: 51.76722, lon: -105.74584, name: "Grivet Outdoors - Cooper Young, Memphis, TN" },
+      { lat: 44.91272, lon: -93.27813, name: "Fleet Feet Minneapolis, Minneapolis, MN" },
+      { lat: 40.48088, lon: -88.9508, name: "Fleet Feet Bloomington, Bloomington, IL" },
+      { lat: 37.58193, lon: -77.4982, name: "Lucky Road Run Shop - Willow Lawn, Richmond, VA" },
+      { lat: 38.308467, lon: -77.510793, name: "Lucky Road Run Shop - Fredericksburg, Fredericksburg, VA" },
+      { lat: 37.55263, lon: -77.47895, name: "Lucky Road Run Shop - Richmond, Richmond, VA" },
+      { lat: 44.40364, lon: -64.35605, name: "Run Hub Northwest, Eugene, OR" },
+      { lat: 41.3737, lon: -71.95543, name: "Kelley's Pace, Mystic, CT" },
+      { lat: 37.88168, lon: -122.52453, name: "San Francisco Running Company - Mill Valley, Mill Valley, CA" },
+      { lat: 37.97416, lon: -122.56279, name: "San Francisco Running Company - San Anselmo, San Anselmo, CA" },
+      { lat: 33.9493, lon: -83.37604, name: "Fleet Feet Athens, Athens, GA" },
+      { lat: 32.34062, lon: -86.17276, name: "Fleet Feet Montgomery, Montgomery, AL" },
+      { lat: 40.238422, lon: -74.281384, name: "Runner's High NJ - Freehold, Freehold, NJ" },
+      { lat: 40.542902, lon: -74.362115, name: "Runner's High NJ - Metuchen, Metuchen, NJ" },
+      { lat: 34.12276, lon: -117.57612, name: "Fleet Feet Rancho Cucamonga, Rancho Cucamonga, CA" },
+      { lat: 42.72083, lon: -73.80209, name: "Fleet Feet Albany, Albany, NY" },
+      { lat: 32.55412, lon: -110.93245, name: "Fleet Feet Tucson - Oro Valley, Oro Valley, AZ" },
+      { lat: 32.24512, lon: -110.85358, name: "Fleet Feet Tucson - Eastside, Tucson, AZ" },
+      { lat: 34.79277, lon: -92.40284, name: "Fleet Feet Little Rock, Little Rock, AR" },
+      { lat: 31.76043, lon: -94.18722, name: "Classic Running and Fitness, Buford, GA" },
+      { lat: -27.65206, lon: 152.92097, name: "Fleet Feet Springfield PA, Springfield, MO" },
+      { lat: 32.90926, lon: -95.87415, name: "Fleet Feet Lexington, Lexington, KY" },
+      { lat: 33.42976, lon: -86.73719, name: "Fleet Feet Birmingham, Birmingham, AL" },
+      { lat: 43.07528, lon: -89.52942, name: "Fleet Feet Madison, Middleton, WI" },
+      { lat: 51.288802, lon: -0.862609, name: "Fleet Feet Sun Prairie, Sun Prairie, WI" },
+      { lat: 39.4267, lon: -77.41694, name: "Charm City Run - Frederick, Frederick, MD" },
+      { lat: 39.43814, lon: -76.62497, name: "Charm City Run - Timonium, Timonium, MD" },
+      { lat: 36.08471, lon: -80.2958, name: "Fleet Feet Winston Salem, Winston-Salem, NC" },
+      { lat: 39.09892, lon: -84.43197, name: "Fleet Feet Cincinnati - Loveland, Loveland, OH" },
+      { lat: 39.23104, lon: -84.37862, name: "Fleet Feet Cincinnati - Blue Ash, Blue Ash, OH" },
+      { lat: 39.13865, lon: -84.35382, name: "Fleet Feet Cincinnati - Fifty West, Cincinnati, OH" },
+      { lat: 42.02514, lon: -88.11511, name: "Xtra Mile Running, Schaumburg, IL" },
+      { lat: 26.18957, lon: -98.23029, name: "Fleet Feet McAllen, McAllen, TX" },
+      { lat: 33.99869, lon: -81.00818, name: "Strictly Running, Columbia, SC" },
+      { lat: 34.02668, lon: -117.89305, name: "Run Republic, Walnut, CA" },
+      { lat: 45.53507, lon: -122.694936, name: "Fleet Feet PDX - Portland, Portland, OR" },
+      { lat: 45.61692, lon: -122.50715, name: "Fleet Feet PDX - Vancouver, Vancouver, WA" },
+      { lat: 40.68817, lon: -89.59091, name: "RC Outfitters, Peoria, IL" },
+      { lat: 42.72084, lon: -84.4188, name: "Playmakers, Okemos, MI" },
+      { lat: 35.06271, lon: -85.31403, name: "Fleet Feet Chattanooga, Chattanooga, TN" },
+      { lat: 40.24668, lon: -77.00686, name: "Fleet Feet Mechanicsburg, Mechanicsburg, PA" },
+      { lat: 14.85264, lon: 120.82759, name: "Fleet Feet Mechanicsburg, Mechanicsburg, PA (Alternate)" },
+      { lat: 40.24651, lon: -76.80389, name: "Fleet Feet Harrisburg, Harrisburg, PA" },
+      { lat: 35.61277, lon: -82.33055, name: "Mountain Running Company, Black Mountain, NC" },
+      { lat: 33.99596, lon: -81.2236, name: "Fleet Feet Columbia SC - Lexington, Lexington, SC" },
+      { lat: 41.41261, lon: -73.37885, name: "The Athlete's Source, Bethel, CT" },
+      { lat: 51.63605, lon: -0.4723, name: "Three Rivers Running Company, Fort Wayne, IN" },
+      { lat: 43.08213, lon: -73.7857, name: "iRun Local, Saratoga Springs, NY" },
+      { lat: 42.51035, lon: -71.42346, name: "On Your Marx Running & Fitness - Acton, Acton, MA" },
+      { lat: 39.22881, lon: -85.90595, name: "White River Running Company, Columbus, IN" },
+      { lat: 42.46833, lon: -73.20363, name: "Berkshire Running Center, Pittsfield, MA" },
+      { lat: 33.11627, lon: -80.38499, name: "Bucks County Running Company, Doylestown, PA" },
+      { lat: 37.51318, lon: -77.69368, name: "PR Run & Walk - RVA Midlothian, Midlothian, VA" },
+      { lat: 33.67297, lon: -78.95128, name: "Black Dog Running Company, Myrtle Beach, SC" },
+      { lat: 33.935553, lon: 35.611165, name: "Terraloco, Rochester, MN" },
+      { lat: 41.63771, lon: -84.99912, name: "Legends Running Shop, Angola, IN" },
+      { lat: 32.59999, lon: -85.48177, name: "Mountain High Outfitters - Auburn AL, Auburn, AL" },
+      { lat: 33.200222, lon: -87.528161, name: "Mountain High Outfitters - Tuscaloosa AL, Tuscaloosa, AL" },
+      { lat: 35.95658, lon: -86.81407, name: "Mountain High Outfitters - Nashville Cool Springs, Franklin, TN" },
+      { lat: 30.67869, lon: -87.82915, name: "Mountain High Outfitters - Spanish Fort Eastern Shore AL, Spanish Fort, AL" },
+      { lat: 53.79501, lon: -1.5329, name: "Mountain High Outfitters - Shops of Grand River in Leeds AL, Leeds, AL" },
+      { lat: 36.96543, lon: -86.43206, name: "Fleet Feet Bowling Green, Bowling Green, KY" },
+      { lat: 38.03535, lon: -78.50095, name: "Ragged Mountain Running, Charlottesville, VA" },
+      { lat: 41.81557, lon: -87.87057, name: "Peak Running - La Grange, La Grange, IL" },
+      { lat: 38.9113, lon: -77.01085, name: "Peak Lifestyle - Hinsdale, Hinsdale, IL" },
+      { lat: 29.55833, lon: -95.36396, name: "Wild Pear Running, Pearland, TX" },
+      { lat: 39.96095, lon: -86.11693, name: "The Runners Forum - Carmel, Carmel, IN" },
+      { lat: 32.95132, lon: -117.01897, name: "Triathlete Store, Poway, CA" },
+      { lat: 34.27617, lon: -119.27773, name: "Mile 26 Running Company, Ventura, CA" },
+      { lat: 47.7743633, lon: -53.1975213, name: "Runaround Running & Lifestyle, Joplin, MO" },
+      { lat: 40.48487, lon: -78.72677, name: "Up-N-Running - Ebensburg, Ebensburg, PA" },
+      { lat: 40.70453, lon: -79.92957, name: "Up-N-Running - Valencia, Valencia, PA" },
+      { lat: 41.02339, lon: -80.70983, name: "Fleet Feet Cleveland - Youngstown, Youngstown, OH" },
+      { lat: 41.31594, lon: -81.83567, name: "Fleet Feet Cleveland - Strongsville, Strongsville, OH" },
+      { lat: 41.46817, lon: -81.90947, name: "Fleet Feet Cleveland - Westlake, Westlake, OH" },
+      { lat: 41.462345, lon: -81.461767, name: "Fleet Feet Cleveland - Pepper Pike, Pepper Pike, OH" },
+      { lat: 41.45582, lon: -81.6525, name: "Fleet Feet Cleveland - Northfield, Northfield, OH" },
+      { lat: 40.58717, lon: -122.35853, name: "Fleet Feet Redding, Redding, CA" },
+      { lat: 51.70757, lon: -1.36051, name: "Run Away Shoes - Appleton, Appleton, WI" },
+      { lat: 44.47054, lon: -88.07626, name: "Run Away Shoes - Greenbay, Ashwaubenon, WI" },
+      { lat: 42.0482, lon: -87.6816, name: "Commonwealth Running Company, Evanston, IL" },
+      { lat: -38.16036, lon: 176.23728, name: "Springfield Running Center, Springfield, IL" },
+      { lat: 33.2418, lon: -111.63392, name: "Fleet Feet Queen Creek, Queen Creek, AZ" },
+      { lat: 45.78622, lon: -108.55707, name: "Time Out Sports, Billings, MT" },
+      { lat: 40.11379, lon: -84.36144, name: "Can't Stop Running Company, Piqua, OH" },
+      { lat: 37.22501, lon: -79.96953, name: "Fleet Feet Roanoke, Roanoke, VA" },
+      { lat: 41.61937, lon: -73.91943, name: "Fleet Feet Poughkeepsie, Poughkeepsie, NY" },
+      { lat: 36.0226, lon: -95.95011, name: "Tulsa Runner, Tulsa, OK" },
+      { lat: 33.90808, lon: -117.85052, name: "A Snail's Pace - Brea, Brea, CA" },
+      { lat: 33.711, lon: -117.95246, name: "A Snail's Pace - Fountain Valley, Fountain Valley, CA" },
+      { lat: 33.60757, lon: -117.68945, name: "A Snail's Pace - Mission Viejo, Mission Viejo, CA" },
+      { lat: 6.36576, lon: -10.78715, name: "A Snail's Pace - Monrovia, Monrovia, CA" },
+      { lat: 32.90926, lon: -95.87415, name: "Schwab's 2nd Wind, E Setauket, NY" },
+      { lat: 38.90744, lon: -92.33858, name: "Fleet Feet Columbia MO, Columbia, MO" },
+      { lat: 40.76966, lon: -96.6158, name: "Fleet Feet Lincoln, Lincoln, NE" },
+      { lat: 41.23298, lon: -96.19149, name: "Fleet Feet Lincoln - Omaha-Legacy, Omaha, NE" },
+      { lat: 41.23869, lon: -96.01604, name: "Fleet Feet Lincoln - Omaha-Aksarben, Omaha, NE" },
+      { lat: 36.99249, lon: -86.43464, name: "The Runner's Lounge, Bowling Green, KY" }
+
+    ];
+
+    storeLocations.forEach(function (location) {
+      viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(location.lon, location.lat),
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.RED
+        },
+        description: `<h2>Store Location</h2><p>${location.name}</p>`
+      });
+    });
+
+    // Load race locations from race_coordinates.csv
+    const raceLocations = [
+      { lat: 33.6663, lon: -112.26564, name: "Detweiller At Dark, Peoria, IL" },
+      { lat: 39.88549, lon: -82.94415, name: "OHSAA Early Season Invitational, Obetz, OH" },
+      { lat: 35.34073, lon: -82.45121, name: "WNC Cross Country Carnival, Hendersonville, NC" },
+      { lat: 35.34073, lon: -82.45121, name: "WNC Cross Country Carnival, Hendersonville, NC" },
+      { lat: 46.99745, lon: -103.78923, name: "Rusty Bucket, Mandan, ND" },
+      { lat: 35.01858, lon: -89.8324, name: "City Auto MEMPHIS TWILIGHT CLASSIC, Memphis, TN" },
+      { lat: 33.24607, lon: -97.15846, name: "Marcus Coach T XC Invitational, Denton, TX" },
+      { lat: 37.07246, lon: -113.5764, name: "Dixie All-Comers Meet, St. George, UT" },
+      { lat: 33.34034, lon: -80.1902, name: "Juab Cross Country Invite, Nephi, UT" },
+      { lat: 40.65995, lon: -111.88797, name: "Murray Spartan Invitational, Murray, UT" },
+      { lat: 40.66669, lon: -111.512, name: "Park City Invitational A.M., Park City, UT" },
+      { lat: 41.31156, lon: -73.99144, name: "Red Raider Run, Bear Mountain, NY" },
+      { lat: 38.40315, lon: -85.58771, name: "Rumble Through the Jungle, Goshen, KY" },
+      { lat: 39.98888, lon: -105.11085, name: "Centaurus Bernie Gay Invitational, Lafayette, CO" },
+      { lat: 34.44375, lon: -87.17827, name: "Chickasaw Trails Invitational, Oakville, AL" },
+      { lat: 37.27554, lon: -80.10626, name: "Knights Crossing Invitational, Salem, VA" },
+      { lat: 47.2857, lon: 6.66944, name: "Mike Kuharic Invitational, La Grange, IL" },
+      { lat: 41.57241, lon: -90.48354, name: "Pleasant Valley Spartan Classic, Bettendorf, IA" },
+      { lat: 40.51053, lon: -75.7891, name: "PTXC 15, Kutztown, PA" },
+      { lat: 39.45739, lon: -87.26208, name: "Terre Haute North State Preview, Terre Haute, IN" },
+      { lat: 44.00773, lon: -92.40922, name: "Mayo Invitational, Rochester, MN" },
+      { lat: 43.16221, lon: -87.90829, name: "DSHA Dasher Invitational, Milwaukee, WI" },
+      { lat: 39.58636, lon: -105.00529, name: "Liberty Bell Invitational, Littleton, CO" },
+      { lat: 43.22243, lon: -77.30296, name: "Wayne Invitational, Ontario Center, NY" },
+      { lat: 33.67394, lon: -117.74177, name: "Woodbridge Classic, Irvine, CA" },
+      { lat: 35.77313, lon: -78.81713, name: "adidas XC Challenge, Cary, NC" },
+      { lat: 35.15405, lon: -80.75043, name: "Hare & Hounds Invitational, Charlotte, NC" },
+      { lat: 44.99092, lon: -93.18956, name: "Roy Griak Invitational, Falcon Heights, MN" },
+      { lat: 38.28653, lon: -85.55099, name: "Trinity / Valkyrie Invitational, Louisville, KY" },
+      { lat: 40.38811, lon: -111.78488, name: "TwiKnight, American Fork, UT" },
+      { lat: 40.28322, lon: -76.67514, name: "PIAA Foundation Invitational, Hershey, PA" },
+      { lat: 41.47104, lon: -88.18055, name: "Minooka Flight Races/FS/Open Invitational, Channahon, IL" },
+      { lat: 39.04092, lon: -77.6174, name: "Oatlands Invitational, Leesburg, VA" },
+      { lat: 37.13093, lon: -113.63402, name: "Snow Canyon Tri-Meet, St. George, UT" },
+      { lat: 40.23704, lon: -105.32976, name: "St. Vrain Invitational - High School, Lyons, CO" },
+      { lat: 34.174918, lon: -84.819204, name: "Wingfoot Classic, Cartersville, GA" },
+      { lat: 44.01917, lon: -89.19781, name: "Wautoma Invitational, Neshkoro, WI" },
+      { lat: 43.60828, lon: -116.24808, name: "Bob Firman Invitational XC, Boise, ID" },
+      { lat: 30.19208, lon: -95.49123, name: "Nike South Invitational, The Woodlands, TX" },
+      { lat: 43.02861, lon: -89.55289, name: "Nuttycombe Wisconsin Invitational, Madison, WI" },
+      { lat: 54.88335, lon: -2.89875, name: "Carlisle Invitational, Carlisle, PA" },
+      { lat: 41.60164, lon: -73.93684, name: "Bowdoin XC Classic, Wappingers Falls, NY" },
+      { lat: 43.12474, lon: -77.63476, name: "McQuaid Invitational, Rochester, NY" },
+      { lat: 42.67346, lon: -88.99665, name: "Midwest Invitational (HIGH SCHOOL), Janesville, WI" },
+      { lat: 41.65071, lon: -71.44689, name: "Ocean State High School Championship Race, Warwick, RI" },
+      { lat: 32.31714, lon: -90.21003, name: "Six Flags Wild Safari Invitational, Jackson, NJ" },
+      { lat: 38.24294, lon: -85.67078, name: "Trinity St. X Dual, Louisville, KY" },
+      { lat: 41.21912, lon: -111.93148, name: "Jayhawk XC Meet, Ogden, UT" },
+      { lat: 40.68965, lon: -111.83927, name: "Region 13 Championships, Salt Lake City, UT" },
+      { lat: 40.63514, lon: -111.86409, name: "Region 14 XC Championship, Murray, UT" },
+      { lat: 45.80845, lon: 9.0803, name: "FLRUNNERS.COM INVITATIONAL, Lakeland, FL" },
+      { lat: 35.78424, lon: -78.75543, name: "Great American XC Festival, Cary, NC" },
+      { lat: 40.29862, lon: -111.69698, name: "Region 8 Championships, Orem, UT" },
+      { lat: 61.23276, lon: -149.73527, name: "Alaska (ASAA) State Championships, Anchorage, AK" },
+      { lat: 33.63119, lon: -84.72075, name: "Alexander / Asics Invitational, Fairburn, GA" },
+      { lat: 40.36951, lon: -74.18255, name: "Shore Coaches Invitational, Holmdel, NJ" },
+      { lat: 39.22388, lon: -86.5171, name: "Region 9 Championships, St. George, UT" },
+      { lat: 41.06626, lon: -111.95732, name: "Region 1 Championship, Layton, UT" },
+      { lat: 44.92454, lon: -93.70905, name: "Lake Conference Championships, Minnetrista, MN" },
+      { lat: 44.28658, lon: -77.45233, name: "Woodland Invitational, Marble Hill, MO" },
+      { lat: 30.41874, lon: -84.15122, name: "FSU Invitational (Pre-State), Tallahassee, FL" },
+      { lat: 43.11588, lon: -75.56873, name: "V-V-S Invitational, Verona, NY" },
+      { lat: 40.87312, lon: -73.9117, name: "Manhattan College Invitational, Bronx, NY" },
+      { lat: 43.00775, lon: -88.02012, name: "GMC Championships, West Allis, WI" },
+      { lat: 41.018526, lon: -73.79778, name: "Section 1 Coaches Invitational, Woodlands, NY" },
+      { lat: 37.64369, lon: -77.30645, name: "The VA XC Showcase, Mechanicsville, VA" },
+      { lat: 45.09029, lon: -75.35536, name: "Third Battle Invitational, Winchester, VA" },
+      { lat: 34.047457, lon: -117.843202, name: "Mt. SAC Invitational, Walnut, CA" },
+      { lat: 43.0573, lon: -73.80138, name: "Suburban Council Championships, Saratoga Springs, NY" },
+      { lat: 32.29896, lon: -90.29888, name: "MHSAA 1A-2A-3A State Championships, Clinton, MS" },
+      { lat: 30.5178, lon: -97.68346, name: "UIL State Championship, Round Rock, TX" },
+      { lat: 38.82151, lon: -104.84971, name: "2A Colorado State Championships, Colorado Springs, CO" },
+      { lat: 38.14364, lon: -84.51952, name: "KHSAA State Championships, Lexington, KY" },
+      { lat: 36.09078, lon: -80.07829, name: "NCHSAA State Championship, Kernersville, NC" },
+      { lat: 40.34652, lon: -74.44182, name: "NJSIAA Sectionals - Central, Jamesburg, NJ" },
+      { lat: 40.90233, lon: -74.18186, name: "NJSIAA Sectionals - North 1, Woodland Park, NJ" },
+      { lat: 40.83318, lon: -74.50272, name: "NJSIAA Sectionals - North 2, Morris Plains, NJ" },
+      { lat: 40.99836, lon: -77.40708, name: "NJSIAA Sectionals - South, Logan Township, NJ" },
+      { lat: 34.48402, lon: -93.05917, name: "Arkansas State Championships, Hot Springs, AR" },
+      { lat: 38.12347, lon: -78.48802, name: "VISAA State Championships, Earlysville, VA" },
+      { lat: 33.56779, lon: -85.07862, name: "GHSA State Championships, Carrollton, GA" },
+      { lat: 43.32919, lon: -73.69196, name: "Section 2 Championships, Queensbury, NY" },
+      { lat: 36.17021, lon: -80.36498, name: "Fleet Feet Dash for Doobie, Pfafftown, NC" },
+      { lat: 38.21895, lon: -85.70905, name: "Lloyd White Memorial Distance Festival, Louisville, KY" },
+      { lat: 32.32331, lon: -64.72971, name: "Bermuda XC Challenge, Devonshire, Bermuda" },
+      { lat: 34.68631, lon: -86.58687, name: "RunningLane Championships, Huntsville, AL" },
+
+    ];
+
+    raceLocations.forEach(function (location) {
+      viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(location.lon, location.lat),
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.BLUE
+        },
+        description: `<h2>Race Location</h2><p>${location.name}</p>`
+      });
+    });
+
+    // Function to zoom into the United States
+    function zoomToUnitedStates() {
+      const usCoordinates = Cesium.Cartesian3.fromDegrees(-98.35, 39.50, 5000000);
+      viewer.camera.flyTo({
+        destination: usCoordinates,
+        duration: 2
+      });
+    }
+
+  </script>
+</body>
+
+</html>
